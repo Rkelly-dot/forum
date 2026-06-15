@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// setupTestDB creates an in-memory SQLite DB with the users table
+// setupTestDB creates an in-memory SQLite DB with the users and sessions tables
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -21,14 +21,28 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS users (
-			id       INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT NOT NULL UNIQUE,
-			email    TEXT NOT NULL UNIQUE,
-			password TEXT NOT NULL
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			email      TEXT    NOT NULL UNIQUE,
+			username   TEXT    NOT NULL UNIQUE,
+			password   TEXT    NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		t.Fatalf("failed to create users table: %v", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS sessions (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			token      TEXT    NOT NULL UNIQUE,
+			user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			expires_at DATETIME NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create sessions table: %v", err)
 	}
 
 	return db
@@ -53,7 +67,6 @@ func TestRegisterPOST_Success(t *testing.T) {
 		t.Errorf("expected 303, got %d", rr.Code)
 	}
 
-	// confirm user was inserted
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ?", "walter@test.com").Scan(&count)
 	if count != 1 {
@@ -67,7 +80,6 @@ func TestRegisterPOST_MissingFields(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("username", "walter")
-	// email and password missing
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -84,7 +96,6 @@ func TestRegisterPOST_DuplicateEmail(t *testing.T) {
 	db := setupTestDB(t)
 	h := NewAuthHandler(db)
 
-	// insert first user directly
 	db.Exec(
 		"INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
 		"walter", "walter@test.com", "hashedpw",
@@ -92,7 +103,7 @@ func TestRegisterPOST_DuplicateEmail(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("username", "walter2")
-	form.Set("email", "walter@test.com") // same email
+	form.Set("email", "walter@test.com")
 	form.Set("password", "anotherpass")
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
@@ -110,7 +121,6 @@ func TestLoginPOST_Success(t *testing.T) {
 	db := setupTestDB(t)
 	h := NewAuthHandler(db)
 
-	// register a user first via the handler
 	form := url.Values{}
 	form.Set("username", "walter")
 	form.Set("email", "walter@test.com")
@@ -118,10 +128,8 @@ func TestLoginPOST_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	httptest.NewRecorder() // discard
 	h.RegisterPOST(httptest.NewRecorder(), req)
 
-	// now try to login
 	loginForm := url.Values{}
 	loginForm.Set("email", "walter@test.com")
 	loginForm.Set("password", "secret123")
@@ -136,7 +144,6 @@ func TestLoginPOST_Success(t *testing.T) {
 		t.Errorf("expected 303, got %d", rr.Code)
 	}
 
-	// confirm a session cookie was set
 	cookies := rr.Result().Cookies()
 	found := false
 	for _, c := range cookies {
@@ -147,13 +154,19 @@ func TestLoginPOST_Success(t *testing.T) {
 	if !found {
 		t.Error("expected session_token cookie to be set")
 	}
+
+	// confirm a session row exists in the db
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM sessions").Scan(&count)
+	if count != 1 {
+		t.Errorf("expected 1 session row, got %d", count)
+	}
 }
 
 func TestLoginPOST_WrongPassword(t *testing.T) {
 	db := setupTestDB(t)
 	h := NewAuthHandler(db)
 
-	// register first
 	form := url.Values{}
 	form.Set("username", "walter")
 	form.Set("email", "walter@test.com")
@@ -162,7 +175,6 @@ func TestLoginPOST_WrongPassword(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.RegisterPOST(httptest.NewRecorder(), req)
 
-	// login with wrong password
 	loginForm := url.Values{}
 	loginForm.Set("email", "walter@test.com")
 	loginForm.Set("password", "wrongpassword")
@@ -198,23 +210,47 @@ func TestLoginPOST_NonexistentUser(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	h := NewAuthHandler(nil)
+	db := setupTestDB(t)
+	h := NewAuthHandler(db)
 
-	// plant a fake session
-	Sessions["fake-token-123"] = 1
+	// register and log in to get a real session
+	form := url.Values{}
+	form.Set("username", "walter")
+	form.Set("email", "walter@test.com")
+	form.Set("password", "secret123")
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	h.RegisterPOST(httptest.NewRecorder(), req)
 
-	req := httptest.NewRequest(http.MethodGet, "/logout", nil)
-	req.AddCookie(&http.Cookie{Name: "session_token", Value: "fake-token-123"})
+	loginForm := url.Values{}
+	loginForm.Set("email", "walter@test.com")
+	loginForm.Set("password", "secret123")
+	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginRR := httptest.NewRecorder()
+	h.LoginPOST(loginRR, loginReq)
+
+	var token string
+	for _, c := range loginRR.Result().Cookies() {
+		if c.Name == "session_token" {
+			token = c.Value
+		}
+	}
+
+	// now log out
+	req2 := httptest.NewRequest(http.MethodGet, "/logout", nil)
+	req2.AddCookie(&http.Cookie{Name: "session_token", Value: token})
 
 	rr := httptest.NewRecorder()
-	h.Logout(rr, req)
+	h.Logout(rr, req2)
 
 	if rr.Code != http.StatusSeeOther {
 		t.Errorf("expected 303, got %d", rr.Code)
 	}
 
-	// session should be gone
-	if _, exists := Sessions["fake-token-123"]; exists {
-		t.Error("expected session to be deleted after logout")
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM sessions WHERE token = ?", token).Scan(&count)
+	if count != 0 {
+		t.Errorf("expected session to be deleted, got %d rows", count)
 	}
 }

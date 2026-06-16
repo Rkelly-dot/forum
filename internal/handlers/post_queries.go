@@ -129,3 +129,28 @@ func insertComment(db *sql.DB, c *models.Comment) (int64, error) {
 	}
 	return res.LastInsertId()
 }
+
+func getCommentsByPostID(db *sql.DB, postID int64) ([]models.Comment, error) {
+	rows, err := db.Query(
+		`SELECT c.id, c.post_id, c.user_id, u.username, c.content, c.created_at
+		 FROM comments c
+		 JOIN users u ON u.id = c.user_id
+		 WHERE c.post_id = ?
+		 ORDER BY c.created_at ASC`,
+		postID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []models.Comment
+	for rows.Next() {
+		var cm models.Comment
+		if err := rows.Scan(&cm.ID, &cm.PostID, &cm.UserID, &cm.Username, &cm.Body, &cm.CreatedAt); err != nil {
+			return nil, err
+		}
+		comments = append(comments, cm)
+	}
+	return comments, rows.Err()
+}

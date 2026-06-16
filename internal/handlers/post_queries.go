@@ -92,3 +92,40 @@ func getAllPosts(db *sql.DB) ([]models.Post, error) {
 	}
 	return posts, rows.Err()
 }
+
+func getCategoriesForPost(db *sql.DB, postID int64) ([]string, error) {
+	rows, err := db.Query(
+		`SELECT c.name
+		 FROM post_categories pc
+		 JOIN categories c ON c.id = pc.category_id
+		 WHERE pc.post_id = ?`,
+		postID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cats []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return nil, err
+		}
+		cats = append(cats, c)
+	}
+	return cats, rows.Err()
+}
+
+// ── Comments ───────────────────────────────────────────────────────────────
+
+func insertComment(db *sql.DB, c *models.Comment) (int64, error) {
+	res, err := db.Exec(
+		`INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, datetime('now'))`,
+		c.PostID, c.UserID, c.Body,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}

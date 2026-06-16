@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	"forum/internal/handlers"
+	"forum/handlers"
 )
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB) {

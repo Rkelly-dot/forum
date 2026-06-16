@@ -41,3 +41,54 @@ func insertPost(db *sql.DB, p *models.Post) (int64, error) {
 	}
 	return id, nil
 }
+
+func getPostByID(db *sql.DB, postID int64) (*models.Post, error) {
+	row := db.QueryRow(
+		`SELECT p.id, p.user_id, u.username, p.title, p.content, p.created_at
+		 FROM posts p
+		 JOIN users u ON u.id = p.user_id
+		 WHERE p.id = ?`,
+		postID,
+	)
+
+	p := &models.Post{}
+	err := row.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	cats, err := getCategoriesForPost(db, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	p.Categories = cats
+	return p, nil
+}
+
+func getAllPosts(db *sql.DB) ([]models.Post, error) {
+	rows, err := db.Query(
+		`SELECT p.id, p.user_id, u.username, p.title, p.content, p.created_at
+		 FROM posts p
+		 JOIN users u ON u.id = p.user_id
+		 ORDER BY p.created_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var p models.Post
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		cats, err := getCategoriesForPost(db, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.Categories = cats
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}

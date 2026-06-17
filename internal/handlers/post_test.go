@@ -184,3 +184,47 @@ func TestGetPostByIDNotFound(t *testing.T) {
 		t.Errorf("expected sql.ErrNoRows, got %v", err)
 	}
 }
+
+// ── handler-level tests ────────────────────────────────────────────────────
+ 
+func TestNewPostPOST_GuestUnauthorized(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+ 
+	handler := NewPostHandler(db, nil)
+ 
+	form := url.Values{}
+	form.Set("title", "Guest post attempt")
+	form.Set("body", "Should not be saved")
+ 
+	req := httptest.NewRequest(http.MethodPost, "/posts/new", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// no session cookie set — guest request
+ 
+	rr := httptest.NewRecorder()
+	handler.NewPostPOST(rr, req)
+ 
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+ 
+func TestCreateComment_GuestUnauthorized(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+ 
+	handler := NewCommentHandler(db, nil)
+ 
+	form := url.Values{}
+	form.Set("body", "Guest comment attempt")
+ 
+	req := httptest.NewRequest(http.MethodPost, "/posts/1/comments", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+ 
+	rr := httptest.NewRecorder()
+	handler.CreateComment(rr, req)
+ 
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}

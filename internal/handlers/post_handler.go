@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"forum/internal/auth"
+	"forum/internal/models"
 )
 
 type PostHandler struct {

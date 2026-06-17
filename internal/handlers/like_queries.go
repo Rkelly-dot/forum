@@ -146,3 +146,27 @@ func countCommentLikes(db *sql.DB, commentID int64) (likes, dislikes int, err er
 	err = row.Scan(&likes, &dislikes)
 	return likes, dislikes, err
 }
+
+func getUserPostVote(db *sql.DB, postID, userID int64) (int, error) {
+	var value int
+	err := db.QueryRow(
+		`SELECT value FROM likes WHERE post_id = ? AND user_id = ? AND comment_id IS NULL`,
+		postID, userID,
+	).Scan(&value)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	return value, err
+}
+ 
+func getUserCommentVote(db *sql.DB, commentID, userID int64) (int, error) {
+	var value int
+	err := db.QueryRow(
+		`SELECT value FROM likes WHERE comment_id = ? AND user_id = ? AND post_id IS NULL`,
+		commentID, userID,
+	).Scan(&value)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	return value, err
+}

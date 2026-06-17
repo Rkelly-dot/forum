@@ -1,10 +1,10 @@
-package main
+package server
 
 import (
-	"database/sql"
-	"net/http"
+    "database/sql"
+    "net/http"
 
-	"forum/handlers"
+    "forum/internal/handlers"
 )
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB) {

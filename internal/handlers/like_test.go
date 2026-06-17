@@ -81,4 +81,72 @@ func seedLikeTestUser(t *testing.T, db *sql.DB, username, email string) int64 {
 	return id
 }
 
+func TestUpsertPostLike_AddAndCount(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
 
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	postID, err := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
+	if err != nil {
+		t.Fatalf("insertPost: %v", err)
+	}
+
+	if err := upsertPostLike(db, postID, userID, 1); err != nil {
+		t.Fatalf("upsertPostLike: %v", err)
+	}
+
+	likes, dislikes, err := countPostLikes(db, postID)
+	if err != nil {
+		t.Fatalf("countPostLikes: %v", err)
+	}
+	if likes != 1 || dislikes != 0 {
+		t.Errorf("got likes=%d dislikes=%d, want 1/0", likes, dislikes)
+	}
+}
+
+func TestUpsertPostLike_Toggle(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	postID, _ := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
+
+	
+	if err := upsertPostLike(db, postID, userID, 1); err != nil {
+		t.Fatalf("first like: %v", err)
+	}
+	if err := upsertPostLike(db, postID, userID, 1); err != nil {
+		t.Fatalf("second like: %v", err)
+	}
+
+	likes, dislikes, err := countPostLikes(db, postID)
+	if err != nil {
+		t.Fatalf("countPostLikes: %v", err)
+	}
+	if likes != 0 || dislikes != 0 {
+		t.Errorf("expected toggled-off vote, got likes=%d dislikes=%d", likes, dislikes)
+	}
+}
+
+func TestUpsertPostLike_SwitchVote(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	postID, _ := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
+
+	if err := upsertPostLike(db, postID, userID, 1); err != nil {
+		t.Fatalf("like: %v", err)
+	}
+	if err := upsertPostLike(db, postID, userID, -1); err != nil {
+		t.Fatalf("dislike: %v", err)
+	}
+
+	likes, dislikes, err := countPostLikes(db, postID)
+	if err != nil {
+		t.Fatalf("countPostLikes: %v", err)
+	}
+	if likes != 0 || dislikes != 1 {
+		t.Errorf("expected switched vote, got likes=%d dislikes=%d", likes, dislikes)
+	}
+}

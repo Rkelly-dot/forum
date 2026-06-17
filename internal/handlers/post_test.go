@@ -1,0 +1,145 @@
+package handlers
+ 
+import (
+	"database/sql"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+ 
+	_ "github.com/mattn/go-sqlite3"
+)
+ 
+// ── test DB setup ──────────────────────────────────────────────────────────
+ 
+func setupTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+ 
+	schema := `
+	CREATE TABLE IF NOT EXISTS users (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		username   TEXT NOT NULL UNIQUE,
+		email      TEXT NOT NULL UNIQUE,
+		password   TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	);
+	CREATE TABLE IF NOT EXISTS posts (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id    INTEGER NOT NULL REFERENCES users(id),
+		title      TEXT NOT NULL,
+		body       TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	);
+	CREATE TABLE IF NOT EXISTS post_categories (
+		post_id  INTEGER NOT NULL REFERENCES posts(id),
+		category TEXT NOT NULL,
+		PRIMARY KEY (post_id, category)
+	);
+	CREATE TABLE IF NOT EXISTS comments (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		post_id    INTEGER NOT NULL REFERENCES posts(id),
+		user_id    INTEGER NOT NULL REFERENCES users(id),
+		body       TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	);
+	CREATE TABLE IF NOT EXISTS sessions (
+		id         TEXT PRIMARY KEY,
+		user_id    INTEGER NOT NULL REFERENCES users(id),
+		expires_at TEXT NOT NULL
+	);`
+ 
+	if _, err := db.Exec(schema); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	return db
+}
+ 
+func seedUser(t *testing.T, db *sql.DB) int64 {
+	t.Helper()
+	res, err := db.Exec(
+		`INSERT INTO users (username, email, password, created_at) VALUES ('alvin', 'alvin@test.com', 'hashed', datetime('now'))`,
+	)
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+ 
+func seedSession(t *testing.T, db *sql.DB, userID int64) string {
+	t.Helper()
+	sessionID := "test-session-id-abc123"
+	_, err := db.Exec(
+		`INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, datetime('now', '+24 hours'))`,
+		sessionID, userID,
+	)
+	if err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	return sessionID
+}
+
+
+// ── query-level tests ──────────────────────────────────────────────────────
+ 
+func TestInsertPost(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	userID := seedUser(t, db)
+ 
+	p := &models.Post{
+		UserID:     userID,
+		Title:      "Hello Kisumu",
+		Body:       "First post body",
+		Categories: []string{"tech", "general"},
+	}
+ 
+	id, err := insertPost(db, p)
+	if err != nil {
+		t.Fatalf("insertPost: %v", err)
+	}
+	if id == 0 {
+		t.Fatal("expected non-zero post id")
+	}
+ 
+	fetched, err := getPostByID(db, id)
+	if err != nil {
+		t.Fatalf("getPostByID: %v", err)
+	}
+	if fetched.Title != p.Title {
+		t.Errorf("title: got %q want %q", fetched.Title, p.Title)
+	}
+	if len(fetched.Categories) != 2 {
+		t.Errorf("categories: got %d want 2", len(fetched.Categories))
+	}
+}
+ 
+func TestGetAllPosts(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	userID := seedUser(t, db)
+ 
+	for i := 0; i < 3; i++ {
+		_, err := insertPost(db, &models.Post{
+			UserID: userID,
+			Title:  "Post",
+			Body:   "Body",
+		})
+		if err != nil {
+			t.Fatalf("insertPost: %v", err)
+		}
+	}
+ 
+	posts, err := getAllPosts(db)
+	if err != nil {
+		t.Fatalf("getAllPosts: %v", err)
+	}
+	if len(posts) != 3 {
+		t.Errorf("got %d posts, want 3", len(posts))
+	}
+}

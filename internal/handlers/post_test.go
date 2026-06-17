@@ -143,3 +143,44 @@ func TestGetAllPosts(t *testing.T) {
 		t.Errorf("got %d posts, want 3", len(posts))
 	}
 }
+
+func TestInsertAndFetchComments(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	userID := seedUser(t, db)
+ 
+	postID, _ := insertPost(db, &models.Post{
+		UserID: userID,
+		Title:  "Thread post",
+		Body:   "Body",
+	})
+ 
+	for i := 0; i < 2; i++ {
+		_, err := insertComment(db, &models.Comment{
+			PostID: postID,
+			UserID: userID,
+			Body:   "A comment",
+		})
+		if err != nil {
+			t.Fatalf("insertComment: %v", err)
+		}
+	}
+ 
+	comments, err := getCommentsByPostID(db, postID)
+	if err != nil {
+		t.Fatalf("getCommentsByPostID: %v", err)
+	}
+	if len(comments) != 2 {
+		t.Errorf("got %d comments, want 2", len(comments))
+	}
+}
+ 
+func TestGetPostByIDNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+ 
+	_, err := getPostByID(db, 9999)
+	if err != sql.ErrNoRows {
+		t.Errorf("expected sql.ErrNoRows, got %v", err)
+	}
+}

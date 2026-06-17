@@ -228,3 +228,22 @@ func TestCreateComment_GuestUnauthorized(t *testing.T) {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
+
+func TestNewPostGET_GuestRedirects(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+ 
+	handler := NewPostHandler(db, nil)
+ 
+	req := httptest.NewRequest(http.MethodGet, "/posts/new", nil)
+	rr := httptest.NewRecorder()
+	handler.NewPostGET(rr, req)
+ 
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("expected 303 redirect to /login, got %d", rr.Code)
+	}
+	if loc := rr.Header().Get("Location"); loc != "/login" {
+		t.Errorf("expected redirect to /login, got %q", loc)
+	}
+}
+ 

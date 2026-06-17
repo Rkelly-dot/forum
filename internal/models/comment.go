@@ -2,15 +2,13 @@ package models
 
 import "time"
 
-// Comment maps to the comments table.
-// Username is populated by a JOIN on users — not stored in comments table directly.
 type Comment struct {
-	ID        int
-	PostID    int
-	UserID    int
-	Username  string // joined from users table for display
+	ID        int64
+	PostID    int64
+	UserID    int64
+	Username  string 
 	Content   string
-	Likes     int // aggregated from likes table
-	Dislikes  int // aggregated from likes table
+	Likes     int 
+	Dislikes  int 
 	CreatedAt time.Time
 }

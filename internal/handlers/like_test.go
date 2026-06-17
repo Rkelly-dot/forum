@@ -212,3 +212,48 @@ func TestGetPostsByCategory(t *testing.T) {
 		t.Errorf("got %d posts, want 1", len(posts))
 	}
 }
+
+func TestLike_GuestUnauthorized(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "owner", "owner@test.com")
+	postID, _ := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
+
+	handler := NewLikeHandler(db)
+
+	form := url.Values{}
+	form.Set("post_id", strconv.FormatInt(postID, 10))
+	form.Set("value", "1")
+
+	req := httptest.NewRequest(http.MethodPost, "/like", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	rr := httptest.NewRecorder()
+	handler.Like(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+func TestLike_InvalidValue(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	handler := NewLikeHandler(db)
+
+	form := url.Values{}
+	form.Set("post_id", "1")
+	form.Set("value", "5")
+
+	req := httptest.NewRequest(http.MethodPost, "/like", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	rr := httptest.NewRecorder()
+	handler.Like(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for guest request, got %d", rr.Code)
+	}
+}

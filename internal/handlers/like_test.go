@@ -150,3 +150,65 @@ func TestUpsertPostLike_SwitchVote(t *testing.T) {
 		t.Errorf("expected switched vote, got likes=%d dislikes=%d", likes, dislikes)
 	}
 }
+
+func TestUpsertCommentLike_AddAndCount(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	postID, _ := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
+	commentID, err := insertComment(db, &models.Comment{PostID: postID, UserID: userID, Body: "nice"})
+	if err != nil {
+		t.Fatalf("insertComment: %v", err)
+	}
+
+	if err := upsertCommentLike(db, commentID, userID, -1); err != nil {
+		t.Fatalf("upsertCommentLike: %v", err)
+	}
+
+	likes, dislikes, err := countCommentLikes(db, commentID)
+	if err != nil {
+		t.Fatalf("countCommentLikes: %v", err)
+	}
+	if likes != 0 || dislikes != 1 {
+		t.Errorf("got likes=%d dislikes=%d, want 0/1", likes, dislikes)
+	}
+}
+
+func TestGetPostsLikedByUser(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	postA, _ := insertPost(db, &models.Post{UserID: userID, Title: "A", Body: "B"})
+	_, _ = insertPost(db, &models.Post{UserID: userID, Title: "Unliked", Body: "B"})
+
+	if err := upsertPostLike(db, postA, userID, 1); err != nil {
+		t.Fatalf("upsertPostLike: %v", err)
+	}
+
+	liked, err := getPostsLikedByUser(db, userID)
+	if err != nil {
+		t.Fatalf("getPostsLikedByUser: %v", err)
+	}
+	if len(liked) != 1 {
+		t.Errorf("got %d liked posts, want 1", len(liked))
+	}
+}
+
+func TestGetPostsByCategory(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+
+	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
+	_, _ = insertPost(db, &models.Post{UserID: userID, Title: "Tech post", Body: "B", Categories: []string{"tech"}})
+	_, _ = insertPost(db, &models.Post{UserID: userID, Title: "Other post", Body: "B", Categories: []string{"general"}})
+
+	posts, err := getPostsByCategory(db, "tech")
+	if err != nil {
+		t.Fatalf("getPostsByCategory: %v", err)
+	}
+	if len(posts) != 1 {
+		t.Errorf("got %d posts, want 1", len(posts))
+	}
+}

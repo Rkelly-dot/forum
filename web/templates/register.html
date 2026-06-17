@@ -1,0 +1,49 @@
+{{template "layout.html" .}}
+
+{{define "title"}}Register — Forum{{end}}
+
+{{define "content"}}
+<div class="auth-layout">
+   <!-- LEFT HERO -->
+  <div class="auth-hero">
+    <h1 class="hero-title">Join the conversation that matters.</h1>
+    <p class="hero-sub">Forum is the digital town square where knowledge meets community. Share ideas, ask questions, and grow with others across specialized topics.</p>
+  </div>
+
+  <!-- RIGHT FORM -->
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <a href="/login" class="auth-tab">Login</a>
+      <a href="/register" class="auth-tab active">Register</a>
+    </div>
+
+    <h2 class="auth-title">Create an account</h2>
+    <p class="auth-sub">Join the community and start sharing today.</p>
+
+    {{if .Error}}
+    <p class="form-error">{{.Error}}</p>
+    {{end}}
+
+    <form method="POST" action="/register" class="auth-form">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" name="email" placeholder="name@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" placeholder="Choose a username" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn btn-primary auth-btn">Create Account</button>
+    </form>
+
+    <p class="auth-footer">
+      Already have an account? <a href="/login">Log in</a>
+    </p>
+  </div>
+
+</div>
+{{end}}

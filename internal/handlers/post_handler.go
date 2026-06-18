@@ -12,15 +12,14 @@ import (
 )
 
 type PostHandler struct {
-	db        *sql.DB
-	templates *template.Template
+	db *sql.DB
 }
 
-func NewPostHandler(db *sql.DB, tmpl *template.Template) *PostHandler {
-	return &PostHandler{db: db, templates: tmpl}
+// FIXED: no longer takes *template.Template — each method parses its own
+func NewPostHandler(db *sql.DB) *PostHandler {
+	return &PostHandler{db: db}
 }
 
-// GET /posts
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := getAllPosts(h.db)
 	if err != nil {
@@ -28,19 +27,24 @@ func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// FIXED: populate like counts so votes show up
+	for i := range posts {
+		posts[i].Likes, posts[i].Dislikes, _ = countPostLikes(h.db, posts[i].ID)
+	}
+
 	user, _ := auth.GetSessionUser(r, h.db)
 
-	data := map[string]interface{}{
+	tmpl, err := template.ParseFiles("web/templates/layout.html", "web/templates/index.html")
+	if err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
 		"Posts": posts,
 		"User":  user,
-	}
-
-	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-	}
+	})
 }
 
-// GET /posts/new
 func (h *PostHandler) NewPostGET(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.GetSessionUser(r, h.db)
 	if err != nil || user == nil {
@@ -48,16 +52,24 @@ func (h *PostHandler) NewPostGET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := map[string]interface{}{
-		"User": user,
+	// FIXED: fetch categories from DB so checkboxes are populated
+	cats, err := getAllCategories(h.db)
+	if err != nil {
+		http.Error(w, "could not fetch categories", http.StatusInternalServerError)
+		return
 	}
 
-	if err := h.templates.ExecuteTemplate(w, "new_post.html", data); err != nil {
+	tmpl, err := template.ParseFiles("web/templates/layout.html", "web/templates/new_post.html")
+	if err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
+		return
 	}
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+		"User":       user,
+		"Categories": cats,
+	})
 }
 
-// POST /posts/new
 func (h *PostHandler) NewPostPOST(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.GetSessionUser(r, h.db)
 	if err != nil || user == nil {
@@ -71,22 +83,36 @@ func (h *PostHandler) NewPostPOST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	title := strings.TrimSpace(r.FormValue("title"))
-	body := strings.TrimSpace(r.FormValue("content"))
-	categories := r.Form["categories"]
+	body  := strings.TrimSpace(r.FormValue("content")) // FIXED: was "body", form sends "content"
+	categoryIDs := r.Form["categories"]
 
 	if title == "" || body == "" {
-		http.Error(w, "title and body are required", http.StatusBadRequest)
+		cats, _ := getAllCategories(h.db)
+		tmpl, _ := template.ParseFiles("web/templates/layout.html", "web/templates/new_post.html")
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"User":       user,
+			"Categories": cats,
+			"Error":      "Title and content are required.",
+		})
 		return
 	}
 
-	p := &models.Post{
+	// FIXED: form sends category IDs but insertPost looks up by name
+	// so resolve each ID to its name first
+	var categoryNames []string
+	for _, idStr := range categoryIDs {
+		var name string
+		if err := h.db.QueryRow(`SELECT name FROM categories WHERE id = ?`, idStr).Scan(&name); err == nil {
+			categoryNames = append(categoryNames, name)
+		}
+	}
+
+	id, err := insertPost(h.db, &models.Post{
 		UserID:     user.ID,
 		Title:      title,
 		Body:       body,
-		Categories: categories,
-	}
-
-	id, err := insertPost(h.db, p)
+		Categories: categoryNames,
+	})
 	if err != nil {
 		http.Error(w, "could not create post", http.StatusInternalServerError)
 		return
@@ -95,7 +121,6 @@ func (h *PostHandler) NewPostPOST(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 }
 
-// GET /posts/{id}
 func (h *PostHandler) ViewPost(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/posts/")
 	postID, err := strconv.ParseInt(idStr, 10, 64)
@@ -113,21 +138,30 @@ func (h *PostHandler) ViewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// FIXED: populate like counts
+	post.Likes, post.Dislikes, _ = countPostLikes(h.db, post.ID)
+
 	comments, err := getCommentsByPostID(h.db, postID)
 	if err != nil {
 		http.Error(w, "could not fetch comments", http.StatusInternalServerError)
 		return
 	}
 
+	// FIXED: populate like counts on comments too
+	for i := range comments {
+		comments[i].Likes, comments[i].Dislikes, _ = countCommentLikes(h.db, comments[i].ID)
+	}
+
 	user, _ := auth.GetSessionUser(r, h.db)
 
-	data := map[string]interface{}{
+	tmpl, err := template.ParseFiles("web/templates/layout.html", "web/templates/post.html")
+	if err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
 		"Post":     post,
 		"Comments": comments,
 		"User":     user,
-	}
-
-	if err := h.templates.ExecuteTemplate(w, "post.html", data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-	}
+	})
 }

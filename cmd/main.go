@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 
@@ -33,37 +32,56 @@ func main() {
 }
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB) {
-	authHandler := handlers.NewAuthHandler(db)
+	authHandler    := handlers.NewAuthHandler(db)
+	postHandler    := handlers.NewPostHandler(db)
+	commentHandler := handlers.NewCommentHandler(db)
+	filterHandler  := handlers.NewFilterHandler(db)
+	likeHandler    := handlers.NewLikeHandler(db)
 
-	// Home / feed
+	// Home — handles ?filter= and ?category= from sidebar too
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles(
-			"./web/templates/layout.html",
-			"./web/templates/index.html",
-		))
-		tmpl.ExecuteTemplate(w, "layout.html", nil)
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.URL.Query().Get("filter") != "" || r.URL.Query().Get("category") != "" {
+			filterHandler.FilteredPosts(w, r)
+			return
+		}
+		postHandler.ListPosts(w, r)
 	})
 
-	// Categories — data will come from DB later
-	mux.HandleFunc("/categories", func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles(
-			"./web/templates/layout.html",
-			"./web/templates/categories.html",
-		))
-		tmpl.ExecuteTemplate(w, "layout.html", nil)
-	})
+	// Categories
+	mux.HandleFunc("/categories", filterHandler.FilteredPosts)
 
 	// New post
 	mux.HandleFunc("/posts/new", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodGet:
+			postHandler.NewPostGET(w, r)
+		case http.MethodPost:
+			postHandler.NewPostPOST(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Single post, comments, likes
+	mux.HandleFunc("/posts/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/posts/" {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-		tmpl := template.Must(template.ParseFiles(
-			"./web/templates/layout.html",
-			"./web/templates/new_post.html",
-		))
-		tmpl.ExecuteTemplate(w, "layout.html", nil)
+		switch {
+		case isLikePath(r.URL.Path) && r.Method == http.MethodPost:
+			likeHandler.Like(w, r)
+		case isCommentPath(r.URL.Path) && r.Method == http.MethodPost:
+			commentHandler.CreateComment(w, r)
+		case r.Method == http.MethodGet:
+			postHandler.ViewPost(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
 	})
 
 	// Auth
@@ -90,4 +108,12 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB) {
 	})
 
 	mux.HandleFunc("/logout", authHandler.Logout)
+}
+
+func isLikePath(path string) bool {
+	return len(path) > 5 && path[len(path)-5:] == "/like"
+}
+
+func isCommentPath(path string) bool {
+	return len(path) > 9 && path[len(path)-9:] == "/comments"
 }

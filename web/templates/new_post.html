@@ -1,0 +1,64 @@
+{{template "layout.html" .}}
+
+{{define "title"}}Create a Post{{end}}
+
+{{define "content"}}
+<div class="new-post-layout">
+
+  <!-- FORM -->
+  <div class="new-post-main">
+    <h1 class="new-post-title">Create a Post</h1>
+    <p class="new-post-sub">Share your thoughts with the community.</p>
+
+    <form method="POST" action="/posts/new" class="new-post-form">
+
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input type="text" name="title" placeholder="What's on your mind?" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Content</label>
+        <textarea name="content" placeholder="Write your post..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Categories</label>
+        <div class="category-checks">
+          {{range .Categories}}
+          <label class="check-label">
+            <input type="checkbox" name="categories" value="{{.ID}}" />
+            {{.Name}}
+          </label>
+          {{end}}
+        </div>
+      </div>
+
+      {{if .Error}}
+      <p class="form-error">{{.Error}}</p>
+      {{end}}
+
+      <div class="form-actions">
+        <a href="/" class="btn btn-ghost">Discard</a>
+        <button type="submit" class="btn btn-primary">Post</button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- SIDEBAR GUIDELINES -->
+  <aside class="new-post-aside">
+    <div class="guidelines-card">
+      <h3 class="guidelines-title">📋 Posting Guidelines</h3>
+      <ol class="guidelines-list">
+        <li>Remember the human. Be respectful and constructive.</li>
+        <li>No harassment or hate speech.</li>
+        <li>No spam or self-promotion.</li>
+        <li>Search for duplicates before posting.</li>
+        <li>Use relevant categories and descriptive titles.</li>
+      </ol>
+    </div>
+  </aside>
+
+</div>
+{{end}}

@@ -9,9 +9,10 @@ import (
 	"testing"
  
 	_ "github.com/mattn/go-sqlite3"
+	"forum/internal/models"
 )
  
-// ── test DB setup ──────────────────────────────────────────────────────────
+
  
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()

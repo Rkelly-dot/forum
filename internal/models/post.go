@@ -7,7 +7,7 @@ type Post struct {
 	UserID     int64
 	Username   string   
 	Title      string
-	Content    string
+	Body       string
 	Categories []string 
 	Likes      int        
 	Dislikes   int        

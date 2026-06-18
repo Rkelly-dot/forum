@@ -7,7 +7,7 @@ type Comment struct {
 	PostID    int64
 	UserID    int64
 	Username  string 
-	Content   string
+	Body      string
 	Likes     int 
 	Dislikes  int 
 	CreatedAt time.Time

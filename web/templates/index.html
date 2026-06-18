@@ -31,10 +31,11 @@
       {{range .Posts}}
       <div class="post-card">
         <div class="vote-col">
-          <button class="vote-btn" data-like="1" data-post-id="{{.ID}}">▲</button>
-          <span class="vote-count">{{.Likes}}</span>
-          <button class="vote-btn" data-like="-1" data-post-id="{{.ID}}">▼</button>
-        </div>
+            <button class="vote-btn" data-like="1" data-post-id="{{.ID}}">▲</button>
+            <span class="like-count">{{.Likes}}</span>
+            <button class="vote-btn" data-like="-1" data-post-id="{{.ID}}">▼</button>
+            <span class="dislike-count">{{.Dislikes}}</span>
+          </div>
         <div class="post-body">
           <div class="post-meta">
             <span>Posted by <a href="#">{{.Username}}</a></span>

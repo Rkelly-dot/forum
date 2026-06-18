@@ -18,12 +18,15 @@ func NewAuthHandler(db *sql.DB) *AuthHandler {
 }
 
 func (h *AuthHandler) RegisterGET(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("web/templates/register.html")
+	tmpl, err := template.ParseFiles("web/templates/register.html", "web/templates/layout.html")
 	if err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	tmpl.Execute(w, nil)
+	if err := tmpl.ExecuteTemplate(w, "register.html", nil); err != nil {
+		http.Error(w, "template render error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *AuthHandler) RegisterPOST(w http.ResponseWriter, r *http.Request) {
@@ -44,12 +47,15 @@ func (h *AuthHandler) RegisterPOST(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) LoginGET(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("web/templates/login.html")
+	tmpl, err := template.ParseFiles("web/templates/login.html", "web/templates/layout.html")
 	if err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	tmpl.Execute(w, nil)
+	if err := tmpl.ExecuteTemplate(w, "login.html", nil); err != nil {
+		http.Error(w, "template render error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *AuthHandler) LoginPOST(w http.ResponseWriter, r *http.Request) {

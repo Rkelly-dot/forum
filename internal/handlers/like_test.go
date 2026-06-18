@@ -111,7 +111,6 @@ func TestUpsertPostLike_Toggle(t *testing.T) {
 	userID := seedLikeTestUser(t, db, "ronnie", "ronnie@test.com")
 	postID, _ := insertPost(db, &models.Post{UserID: userID, Title: "T", Body: "B"})
 
-	
 	if err := upsertPostLike(db, postID, userID, 1); err != nil {
 		t.Fatalf("first like: %v", err)
 	}

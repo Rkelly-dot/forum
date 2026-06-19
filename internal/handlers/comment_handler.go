@@ -32,7 +32,7 @@ func (h *CommentHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/posts/")
-	path  = strings.TrimSuffix(path, "/comments")
+	path = strings.TrimSuffix(path, "/comments")
 	postID, err := strconv.ParseInt(path, 10, 64)
 	if err != nil {
 		http.Error(w, "invalid post id", http.StatusBadRequest)

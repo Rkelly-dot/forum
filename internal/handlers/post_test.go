@@ -1,5 +1,5 @@
 package handlers
- 
+
 import (
 	"database/sql"
 	"net/http"
@@ -7,20 +7,18 @@ import (
 	"net/url"
 	"strings"
 	"testing"
- 
-	_ "github.com/mattn/go-sqlite3"
-	"forum/internal/models"
-)
- 
 
- 
+	"forum/internal/models"
+	_ "github.com/mattn/go-sqlite3"
+)
+
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
- 
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS users (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,13 +51,13 @@ func setupTestDB(t *testing.T) *sql.DB {
 		user_id    INTEGER NOT NULL REFERENCES users(id),
 		expires_at TEXT NOT NULL
 	);`
- 
+
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("schema: %v", err)
 	}
 	return db
 }
- 
+
 func seedUser(t *testing.T, db *sql.DB) int64 {
 	t.Helper()
 	res, err := db.Exec(
@@ -71,7 +69,7 @@ func seedUser(t *testing.T, db *sql.DB) int64 {
 	id, _ := res.LastInsertId()
 	return id
 }
- 
+
 func seedSession(t *testing.T, db *sql.DB, userID int64) string {
 	t.Helper()
 	sessionID := "test-session-id-abc123"
@@ -85,21 +83,20 @@ func seedSession(t *testing.T, db *sql.DB, userID int64) string {
 	return sessionID
 }
 
-
 // ── query-level tests ──────────────────────────────────────────────────────
- 
+
 func TestInsertPost(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	userID := seedUser(t, db)
- 
+
 	p := &models.Post{
 		UserID:     userID,
 		Title:      "Hello Kisumu",
 		Body:       "First post body",
 		Categories: []string{"tech", "general"},
 	}
- 
+
 	id, err := insertPost(db, p)
 	if err != nil {
 		t.Fatalf("insertPost: %v", err)
@@ -107,7 +104,7 @@ func TestInsertPost(t *testing.T) {
 	if id == 0 {
 		t.Fatal("expected non-zero post id")
 	}
- 
+
 	fetched, err := getPostByID(db, id)
 	if err != nil {
 		t.Fatalf("getPostByID: %v", err)
@@ -119,12 +116,12 @@ func TestInsertPost(t *testing.T) {
 		t.Errorf("categories: got %d want 2", len(fetched.Categories))
 	}
 }
- 
+
 func TestGetAllPosts(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	userID := seedUser(t, db)
- 
+
 	for i := 0; i < 3; i++ {
 		_, err := insertPost(db, &models.Post{
 			UserID: userID,
@@ -135,7 +132,7 @@ func TestGetAllPosts(t *testing.T) {
 			t.Fatalf("insertPost: %v", err)
 		}
 	}
- 
+
 	posts, err := getAllPosts(db)
 	if err != nil {
 		t.Fatalf("getAllPosts: %v", err)
@@ -149,13 +146,13 @@ func TestInsertAndFetchComments(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	userID := seedUser(t, db)
- 
+
 	postID, _ := insertPost(db, &models.Post{
 		UserID: userID,
 		Title:  "Thread post",
 		Body:   "Body",
 	})
- 
+
 	for i := 0; i < 2; i++ {
 		_, err := insertComment(db, &models.Comment{
 			PostID: postID,
@@ -166,7 +163,7 @@ func TestInsertAndFetchComments(t *testing.T) {
 			t.Fatalf("insertComment: %v", err)
 		}
 	}
- 
+
 	comments, err := getCommentsByPostID(db, postID)
 	if err != nil {
 		t.Fatalf("getCommentsByPostID: %v", err)
@@ -175,11 +172,11 @@ func TestInsertAndFetchComments(t *testing.T) {
 		t.Errorf("got %d comments, want 2", len(comments))
 	}
 }
- 
+
 func TestGetPostByIDNotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
- 
+
 	_, err := getPostByID(db, 9999)
 	if err != sql.ErrNoRows {
 		t.Errorf("expected sql.ErrNoRows, got %v", err)
@@ -187,44 +184,44 @@ func TestGetPostByIDNotFound(t *testing.T) {
 }
 
 // ── handler-level tests ────────────────────────────────────────────────────
- 
+
 func TestNewPostPOST_GuestUnauthorized(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
- 
+
 	handler := NewPostHandler(db, nil)
- 
+
 	form := url.Values{}
 	form.Set("title", "Guest post attempt")
 	form.Set("body", "Should not be saved")
- 
+
 	req := httptest.NewRequest(http.MethodPost, "/posts/new", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// no session cookie set — guest request
- 
+
 	rr := httptest.NewRecorder()
 	handler.NewPostPOST(rr, req)
- 
+
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
- 
+
 func TestCreateComment_GuestUnauthorized(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
- 
+
 	handler := NewCommentHandler(db, nil)
- 
+
 	form := url.Values{}
 	form.Set("body", "Guest comment attempt")
- 
+
 	req := httptest.NewRequest(http.MethodPost, "/posts/1/comments", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
- 
+
 	rr := httptest.NewRecorder()
 	handler.CreateComment(rr, req)
- 
+
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
@@ -233,13 +230,13 @@ func TestCreateComment_GuestUnauthorized(t *testing.T) {
 func TestNewPostGET_GuestRedirects(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
- 
+
 	handler := NewPostHandler(db, nil)
- 
+
 	req := httptest.NewRequest(http.MethodGet, "/posts/new", nil)
 	rr := httptest.NewRecorder()
 	handler.NewPostGET(rr, req)
- 
+
 	if rr.Code != http.StatusSeeOther {
 		t.Errorf("expected 303 redirect to /login, got %d", rr.Code)
 	}
@@ -247,4 +244,3 @@ func TestNewPostGET_GuestRedirects(t *testing.T) {
 		t.Errorf("expected redirect to /login, got %q", loc)
 	}
 }
- 

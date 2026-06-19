@@ -11,7 +11,7 @@ import (
 	"forum/internal/models"
 )
 
-func CreateSession(db *sql.DB, userID int64 ) (*models.Session, error) {
+func CreateSession(db *sql.DB, userID int64) (*models.Session, error) {
 	_, err := db.Exec("DELETE FROM sessions WHERE user_id = ?", userID)
 	if err != nil {
 		return nil, fmt.Errorf("could not clear old sessions: %w", err)

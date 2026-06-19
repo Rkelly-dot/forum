@@ -83,7 +83,7 @@ func (h *PostHandler) NewPostPOST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	title := strings.TrimSpace(r.FormValue("title"))
-	body  := strings.TrimSpace(r.FormValue("content")) // FIXED: was "body", form sends "content"
+	body := strings.TrimSpace(r.FormValue("content")) // FIXED: was "body", form sends "content"
 	categoryIDs := r.Form["categories"]
 
 	if title == "" || body == "" {

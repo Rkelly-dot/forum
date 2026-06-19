@@ -1,73 +1,64 @@
 {{template "layout.html" .}}
-
 {{define "title"}}Forum — Explore{{end}}
-
 {{define "content"}}
 <div class="page-layout">
-
-  <!-- LEFT SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-section">
-      <p class="sidebar-heading">Communities</p>
-      <p class="sidebar-sub">Join the conversation</p>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="/" class="sidebar-link active">🗨 All Posts</a>
-      <a href="/categories" class="sidebar-link">☰ Categories</a>
-      <hr class="sidebar-divider" />
-      <a href="/?filter=mine" class="sidebar-link">👤 My Posts</a>
-      <a href="/?filter=liked" class="sidebar-link">♡ Liked Posts</a>
-    </nav>
-    <a href="/posts/new" class="btn btn-primary sidebar-btn">Start a Thread</a>
-  </aside>
-
-  <!-- CENTER FEED -->
-  <section class="feed">
-    <div class="feed-header">
-      <h1 class="feed-title">Explore Threads</h1>
-    </div>
-
+<!-- LEFT SIDEBAR -->
+<aside class="sidebar">
+<div class="sidebar-section">
+<p class="sidebar-heading">Communities</p>
+<p class="sidebar-sub">Join the conversation</p>
+</div>
+<nav class="sidebar-nav">
+<a href="/" class="sidebar-link active">🗨 All Posts</a>
+<a href="/categories" class="sidebar-link">☰ Categories</a>
+<hr class="sidebar-divider" />
+<a href="/?filter=mine" class="sidebar-link">👤 My Posts</a>
+<a href="/?filter=liked" class="sidebar-link">♡ Liked Posts</a>
+</nav>
+<a href="/posts/new" class="btn btn-primary sidebar-btn">Start a Thread</a>
+</aside>
+<!-- CENTER FEED -->
+<section class="feed">
+<div class="feed-header">
+<h1 class="feed-title">Explore Threads</h1>
+</div>
     {{if .Posts}}
       {{range .Posts}}
-      <div class="post-card">
-        <div class="vote-col">
-          <button class="vote-btn" data-like="1" data-post-id="{{.ID}}">▲</button>
-          <span class="vote-count">{{.Likes}}</span>
-          <button class="vote-btn" data-like="-1" data-post-id="{{.ID}}">▼</button>
-        </div>
-        <div class="post-body">
-          <div class="post-meta">
-            <span>Posted by <a href="#">{{.Username}}</a></span>
-            <span>·</span>
-            <span>{{.CreatedAt}}</span>
+<div class="post-card">
+<div class="post-body">
+<div class="post-meta">
+<span>Posted by <a href="#">{{.Username}}</a></span>
+<span>·</span>
+<span>{{.CreatedAt}}</span>
             {{if .Categories}}
-              <span class="category-pill">{{index .Categories 0}}</span>
+<span class="category-pill">{{index .Categories 0}}</span>
             {{end}}
-          </div>
-          <div class="post-title">
-            <a href="/posts/{{.ID}}">{{.Title}}</a>
-          </div>
-          <p class="post-excerpt">{{.Body}}</p>
-          <div class="post-actions">
-            <a href="/posts/{{.ID}}">💬 Comments</a>
-            <a href="#">↗ Share</a>
-          </div>
-        </div>
-      </div>
+</div>
+<div class="post-title">
+<a href="/posts/{{.ID}}">{{.Title}}</a>
+</div>
+<p class="post-excerpt">{{.Body}}</p>
+<div class="post-actions">
+<button class="vote-btn" data-like="1" data-post-id="{{.ID}}">👍</button>
+<span class="like-count">{{.Likes}}</span>
+<button class="vote-btn" data-like="-1" data-post-id="{{.ID}}">👎</button>
+<span class="dislike-count">{{.Dislikes}}</span>
+<a href="/posts/{{.ID}}">💬 Comments</a>
+</div>
+</div>
+</div>
       {{end}}
     {{else}}
-      <div class="empty-feed">
-        <p>No posts yet.</p>
-        <a href="/posts/new" class="btn btn-primary">Start the first thread</a>
-      </div>
+<div class="empty-feed">
+<p>No posts yet.</p>
+<a href="/posts/new" class="btn btn-primary">Start the first thread</a>
+</div>
     {{end}}
-
-  </section>
-
-  <!-- RIGHT PANEL -->
-  <aside class="right-panel">
-    <p class="right-copy">© 2026 Forum Community</p>
-  </aside>
-
+</section>
+<!-- RIGHT PANEL -->
+<aside class="right-panel">
+<p class="right-copy">© 2026 Forum Community</p>
+</aside>
 </div>
 {{end}}
+ 

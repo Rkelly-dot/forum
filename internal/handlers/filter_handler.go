@@ -20,8 +20,8 @@ func NewFilterHandler(db *sql.DB) *FilterHandler {
 
 func (h *FilterHandler) FilteredPosts(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
-	filter   := r.URL.Query().Get("filter")
-	user, _  := auth.GetSessionUser(r, h.db)
+	filter := r.URL.Query().Get("filter")
+	user, _ := auth.GetSessionUser(r, h.db)
 
 	// FIXED: no params = show categories browse page with real DB data
 	if category == "" && filter == "" {

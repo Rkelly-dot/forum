@@ -8,6 +8,20 @@ import (
 	"forum/internal/auth"
 )
 
+import (
+	"encoding/json"
+)
+
+func acceptsJSON(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	return accept == "application/json" || accept == "application/json, */*" || accept == "*/*" || accept != "" && (accept == "application/json")
+}
+
+func writeJSONCounts(w http.ResponseWriter, likes, dislikes int) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]int{"likes": likes, "dislikes": dislikes})
+}
+
 type LikeHandler struct {
 	db *sql.DB
 }
@@ -64,6 +78,12 @@ func (h *LikeHandler) Like(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save vote", http.StatusInternalServerError)
 			return
 		}
+		// If the client expects JSON, return updated counts for AJAX UI
+		if acceptsJSON(r) {
+			likes, dislikes, _ := countPostLikes(h.db, postID)
+			writeJSONCounts(w, likes, dislikes)
+			return
+		}
 		http.Redirect(w, r, "/posts/"+strconv.FormatInt(postID, 10), http.StatusSeeOther)
 
 	case commentIDStr != "":
@@ -74,6 +94,11 @@ func (h *LikeHandler) Like(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := upsertCommentLike(h.db, commentID, user.ID, value); err != nil {
 			http.Error(w, "could not save vote", http.StatusInternalServerError)
+			return
+		}
+		if acceptsJSON(r) {
+			likes, dislikes, _ := countCommentLikes(h.db, commentID)
+			writeJSONCounts(w, likes, dislikes)
 			return
 		}
 		referer := r.Header.Get("Referer")

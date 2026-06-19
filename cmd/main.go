@@ -32,11 +32,11 @@ func main() {
 }
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB) {
-	authHandler    := handlers.NewAuthHandler(db)
-	postHandler    := handlers.NewPostHandler(db)
+	authHandler := handlers.NewAuthHandler(db)
+	postHandler := handlers.NewPostHandler(db)
 	commentHandler := handlers.NewCommentHandler(db)
-	filterHandler  := handlers.NewFilterHandler(db)
-	likeHandler    := handlers.NewLikeHandler(db)
+	filterHandler := handlers.NewFilterHandler(db)
+	likeHandler := handlers.NewLikeHandler(db)
 
 	// Home — handles ?filter= and ?category= from sidebar too
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

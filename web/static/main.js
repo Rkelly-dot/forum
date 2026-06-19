@@ -8,9 +8,9 @@ document.addEventListener('click', async (e) => {
   const commentId = btn.dataset.commentId || '';
   const value     = btn.dataset.like;
 
-  const res = await fetch('/like', {
+  const res = await fetch('/posts/like', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
     body: new URLSearchParams({ post_id: postId, comment_id: commentId, value }),
   });
 
@@ -18,7 +18,13 @@ document.addEventListener('click', async (e) => {
     const { likes, dislikes } = await res.json();
     const card = btn.closest('.post-card, .comment-card');
     if (card) {
-      card.querySelector('.vote-count').textContent = likes - dislikes;
+      const likeEl = card.querySelector('.like-count');
+      const dislikeEl = card.querySelector('.dislike-count');
+      if (likeEl) likeEl.textContent = likes;
+      if (dislikeEl) dislikeEl.textContent = dislikes;
+      // fallback for older templates
+      const voteEl = card.querySelector('.vote-count');
+      if (voteEl && !likeEl && !dislikeEl) voteEl.textContent = likes - dislikes;
     }
   }
 });

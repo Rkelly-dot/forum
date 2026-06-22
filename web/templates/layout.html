@@ -16,6 +16,7 @@
     <div class="nav-actions">
       {{if .User}}
         <a href="/posts/new" class="btn btn-primary">Create Post</a>
+        <span class="nav-username">👤 {{.User.Username}}</span>
         <form method="POST" action="/logout" style="display:inline">
           <button type="submit" class="btn btn-ghost">Logout</button>
         </form>

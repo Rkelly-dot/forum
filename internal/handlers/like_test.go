@@ -172,4 +172,37 @@ func TestUpsertCommentLike_Insert(t *testing.T) {
 	}
 }
 
+func TestUpsertCommentLike_Toggle(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, _, commentID, _ := seed(t, db)
+ 
+	_ = upsertCommentLike(db, commentID, 1, -1)
+	_ = upsertCommentLike(db, commentID, 1, -1) // toggle off
+ 
+	likes, dislikes, _ := countCommentLikes(db, commentID)
+	if likes != 0 || dislikes != 0 {
+		t.Errorf("expected 0/0 after toggle, got %d/%d", likes, dislikes)
+	}
+}
+ 
+// ─── getUserPostVote / getUserCommentVote ────────────────────────────────────
+ 
+func TestGetUserPostVote(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, postID, _, _ := seed(t, db)
+ 
+	vote, err := getUserPostVote(db, postID, 1)
+	if err != nil || vote != 0 {
+		t.Errorf("want 0 before voting, got %d (err=%v)", vote, err)
+	}
+ 
+	_ = upsertPostLike(db, postID, 1, 1)
+ 
+	vote, err = getUserPostVote(db, postID, 1)
+	if err != nil || vote != 1 {
+		t.Errorf("want 1 after liking, got %d (err=%v)", vote, err)
+	}
+}
 

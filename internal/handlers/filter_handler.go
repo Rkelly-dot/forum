@@ -49,13 +49,8 @@ func (h *FilterHandler) FilteredPosts(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case category != "":
-		// FIXED: categories page links ?category={{.ID}} but query filters by name
-		// so resolve ID → name first
-		var catName string
-		if lookupErr := h.db.QueryRow(`SELECT name FROM categories WHERE id = ?`, category).Scan(&catName); lookupErr != nil {
-			catName = category // fallback: treat value as name directly
-		}
-		posts, err = getPostsByCategory(h.db, catName)
+		
+		posts, err = getPostsByCategory(h.db, category)
 
 	case filter == "mine":
 		if user == nil {

@@ -101,3 +101,43 @@ func seed(t *testing.T, db *sql.DB) (userID, postID, commentID int64, sessionTok
  
 	return
 }
+ 
+ 
+ 
+// ─── upsertPostLike / countPostLikes ─────────────────────────────────────────
+ 
+func TestUpsertPostLike_Insert(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, postID, _, _ := seed(t, db)
+ 
+	if err := upsertPostLike(db, postID, 1, 1); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+ 
+	likes, dislikes, err := countPostLikes(db, postID)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if likes != 1 || dislikes != 0 {
+		t.Errorf("want likes=1 dislikes=0, got likes=%d dislikes=%d", likes, dislikes)
+	}
+}
+ 
+func TestUpsertPostLike_Toggle(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, postID, _, _ := seed(t, db)
+ 
+	// like then like again → should remove the like (toggle off)
+	_ = upsertPostLike(db, postID, 1, 1)
+	if err := upsertPostLike(db, postID, 1, 1); err != nil {
+		t.Fatalf("second upsert: %v", err)
+	}
+ 
+	likes, dislikes, _ := countPostLikes(db, postID)
+	if likes != 0 || dislikes != 0 {
+		t.Errorf("expected 0/0 after toggle, got %d/%d", likes, dislikes)
+	}
+}
+

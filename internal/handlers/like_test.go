@@ -206,3 +206,37 @@ func TestGetUserPostVote(t *testing.T) {
 	}
 }
 
+func TestGetUserCommentVote(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, _, commentID, _ := seed(t, db)
+ 
+	vote, _ := getUserCommentVote(db, commentID, 1)
+	if vote != 0 {
+		t.Errorf("want 0 before voting, got %d", vote)
+	}
+ 
+	_ = upsertCommentLike(db, commentID, 1, -1)
+ 
+	vote, _ = getUserCommentVote(db, commentID, 1)
+	if vote != -1 {
+		t.Errorf("want -1 after disliking, got %d", vote)
+	}
+}
+ 
+// ─── LikeHandler HTTP tests ───────────────────────────────────────────────────
+ 
+func TestLikeHandler_MethodNotAllowed(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	h := NewLikeHandler(db)
+ 
+	req := httptest.NewRequest(http.MethodGet, "/like", nil)
+	rr := httptest.NewRecorder()
+	h.Like(rr, req)
+ 
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("want 405, got %d", rr.Code)
+	}
+}
+

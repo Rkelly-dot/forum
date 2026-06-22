@@ -141,3 +141,35 @@ func TestUpsertPostLike_Toggle(t *testing.T) {
 	}
 }
 
+func TestUpsertPostLike_Flip(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, postID, _, _ := seed(t, db)
+ 
+	_ = upsertPostLike(db, postID, 1, 1)   // like
+	_ = upsertPostLike(db, postID, 1, -1)  // flip to dislike
+ 
+	likes, dislikes, _ := countPostLikes(db, postID)
+	if likes != 0 || dislikes != 1 {
+		t.Errorf("expected 0/1 after flip, got %d/%d", likes, dislikes)
+	}
+}
+ 
+// ─── upsertCommentLike / countCommentLikes ───────────────────────────────────
+ 
+func TestUpsertCommentLike_Insert(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	_, _, commentID, _ := seed(t, db)
+ 
+	if err := upsertCommentLike(db, commentID, 1, -1); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+ 
+	likes, dislikes, _ := countCommentLikes(db, commentID)
+	if likes != 0 || dislikes != 1 {
+		t.Errorf("want 0/1, got %d/%d", likes, dislikes)
+	}
+}
+
+

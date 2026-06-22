@@ -240,3 +240,19 @@ func TestLikeHandler_MethodNotAllowed(t *testing.T) {
 	}
 }
 
+func TestLikeHandler_Unauthorized(t *testing.T) {
+	db := setupLikeTestDB(t)
+	defer db.Close()
+	h := NewLikeHandler(db)
+ 
+	req := httptest.NewRequest(http.MethodPost, "/like", nil)
+	rr := httptest.NewRecorder()
+	h.Like(rr, req)
+ 
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", rr.Code)
+	}
+}
+ 
+ 
+

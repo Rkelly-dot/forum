@@ -111,7 +111,7 @@ func getUserPostVote(db *sql.DB, postID, userID int64) (int, error) {
 	}
 	return value, err
 }
- 
+
 func getUserCommentVote(db *sql.DB, commentID, userID int64) (int, error) {
 	var value int
 	err := db.QueryRow(

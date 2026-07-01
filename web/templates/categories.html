@@ -1,0 +1,47 @@
+{{template "layout.html" .}}
+
+{{define "title"}}Categories — Forum{{end}}
+
+{{define "content"}}
+<div class="page-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <p class="sidebar-heading">Communities</p>
+      <p class="sidebar-sub">Join the conversation</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="sidebar-link">🗨 All Posts</a>
+      <a href="/categories" class="sidebar-link active">☰ Categories</a>
+      <hr class="sidebar-divider" />
+      <a href="/?filter=mine" class="sidebar-link">👤 My Posts</a>
+      <a href="/?filter=liked" class="sidebar-link">♡ Liked Posts</a>
+    </nav>
+    <a href="/posts/new" class="btn btn-primary sidebar-btn">Start a Thread</a>
+  </aside>
+
+  <!-- CENTER FEED -->
+  <section class="feed">
+    <div class="feed-header">
+      <h1 class="feed-title">Categories</h1>
+    </div>
+
+    <div class="category-grid">
+      {{range .Categories}}
+      <a href="/?category={{.Name}}" class="category-card">
+        <p class="category-card-name">{{.Name}}</p>
+        <p class="category-card-sub">Browse {{.Name}} posts</p>
+      </a>
+      {{end}}
+    </div>
+
+  </section>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+    <p class="right-copy">© 2026 Forum Community</p>
+  </aside>
+
+</div>
+{{end}}

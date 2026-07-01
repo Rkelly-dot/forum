@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{block "title" .}}Forum{{end}}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="/" class="nav-logo">Forum</a>
+    <nav class="nav-links">
+      <a href="/" class="nav-link active">Explore</a>
+    </nav>
+    <div class="nav-actions">
+      {{if .User}}
+        <a href="/posts/new" class="btn btn-primary">Create Post</a>
+        <span class="nav-username">👤 {{.User.Username}}</span>
+        <form method="POST" action="/logout" style="display:inline">
+          <button type="submit" class="btn btn-ghost">Logout</button>
+        </form>
+      {{else}}
+        <a href="/posts/new" class="btn btn-primary">Create Post</a>
+        <a href="/login" class="btn btn-ghost">Login</a>
+      {{end}}
+    </div>
+  </header>
+
+  <main>
+    {{block "content" .}}{{end}}
+  </main>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>

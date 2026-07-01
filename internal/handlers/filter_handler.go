@@ -1,29 +1,46 @@
 package handlers
 
 import (
+	"database/sql"
 	"html/template"
 	"net/http"
-
-	"database/sql"
 
 	"forum/internal/auth"
 	"forum/internal/models"
 )
 
 type FilterHandler struct {
-	db        *sql.DB
-	templates *template.Template
+	db *sql.DB
 }
 
-func NewFilterHandler(db *sql.DB, tmpl *template.Template) *FilterHandler {
-	return &FilterHandler{db: db, templates: tmpl}
+// FIXED: no longer takes *template.Template
+func NewFilterHandler(db *sql.DB) *FilterHandler {
+	return &FilterHandler{db: db}
 }
 
 func (h *FilterHandler) FilteredPosts(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	filter := r.URL.Query().Get("filter")
-
 	user, _ := auth.GetSessionUser(r, h.db)
+
+	// FIXED: no params = show categories browse page with real DB data
+	if category == "" && filter == "" {
+		cats, err := getAllCategories(h.db)
+		if err != nil {
+			http.Error(w, "could not fetch categories", http.StatusInternalServerError)
+			return
+		}
+		tmpl, err := template.ParseFiles("web/templates/layout.html", "web/templates/categories.html")
+		if err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"Categories": cats,
+			"User":       user,
+		})
+		return
+	}
 
 	var (
 		posts []models.Post
@@ -32,7 +49,13 @@ func (h *FilterHandler) FilteredPosts(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case category != "":
-		posts, err = getPostsByCategory(h.db, category)
+		// FIXED: categories page links ?category={{.ID}} but query filters by name
+		// so resolve ID → name first
+		var catName string
+		if lookupErr := h.db.QueryRow(`SELECT name FROM categories WHERE id = ?`, category).Scan(&catName); lookupErr != nil {
+			catName = category // fallback: treat value as name directly
+		}
+		posts, err = getPostsByCategory(h.db, catName)
 
 	case filter == "mine":
 		if user == nil {
@@ -57,14 +80,20 @@ func (h *FilterHandler) FilteredPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := map[string]interface{}{
+	// FIXED: populate like counts
+	for i := range posts {
+		posts[i].Likes, posts[i].Dislikes, _ = countPostLikes(h.db, posts[i].ID)
+	}
+
+	tmpl, err := template.ParseFiles("web/templates/layout.html", "web/templates/index.html")
+	if err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
 		"Posts":    posts,
 		"User":     user,
 		"Category": category,
 		"Filter":   filter,
-	}
-
-	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-	}
+	})
 }

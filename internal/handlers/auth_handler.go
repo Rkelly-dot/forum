@@ -18,46 +18,82 @@ func NewAuthHandler(db *sql.DB) *AuthHandler {
 }
 
 func (h *AuthHandler) RegisterGET(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("web/templates/register.html")
+	tmpl, err := template.ParseFiles(
+		"web/templates/layout.html",
+		"web/templates/register.html",
+	)
 	if err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	tmpl.Execute(w, nil)
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{})
 }
 
 func (h *AuthHandler) RegisterPOST(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	err := auth.RegisterUser(
-		h.DB,
-		r.FormValue("username"),
-		r.FormValue("email"),
-		r.FormValue("password"),
-	)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Validate required fields before attempting to register
+	username := r.FormValue("username")
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	if username == "" || email == "" || password == "" {
+		tmpl, _ := template.ParseFiles("web/templates/layout.html", "web/templates/register.html")
+		w.WriteHeader(http.StatusBadRequest) // 400 — malformed/incomplete request
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"Error": "All fields are required.",
+		})
 		return
 	}
 
+	err := auth.RegisterUser(h.DB, username, email, password)
+	if err != nil {
+		tmpl, _ := template.ParseFiles("web/templates/layout.html", "web/templates/register.html")
+		w.WriteHeader(http.StatusBadRequest) // 400 — e.g. email already taken, invalid input
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"Error": err.Error(),
+		})
+		return
+	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (h *AuthHandler) LoginGET(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("web/templates/login.html")
+	tmpl, err := template.ParseFiles(
+		"web/templates/layout.html",
+		"web/templates/login.html",
+	)
 	if err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	tmpl.Execute(w, nil)
+	tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{})
 }
 
 func (h *AuthHandler) LoginPOST(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	user, err := auth.LoginUser(h.DB, r.FormValue("email"), r.FormValue("password"))
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	// Empty fields = malformed request → 400
+	if email == "" || password == "" {
+		tmpl, _ := template.ParseFiles("web/templates/layout.html", "web/templates/login.html")
+		w.WriteHeader(http.StatusBadRequest)
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"Error": "Email and password are required.",
+		})
+		return
+	}
+
+	user, err := auth.LoginUser(h.DB, email, password)
 	if err != nil {
-		http.Error(w, "invalid email or password", http.StatusUnauthorized)
+		// Fields were present but credentials didn't match → 401
+		tmpl, _ := template.ParseFiles("web/templates/layout.html", "web/templates/login.html")
+		w.WriteHeader(http.StatusUnauthorized)
+		tmpl.ExecuteTemplate(w, "layout.html", map[string]interface{}{
+			"Error": "Invalid email or password.",
+		})
 		return
 	}
 
@@ -74,7 +110,6 @@ func (h *AuthHandler) LoginPOST(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Path:     "/",
 	})
-
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -83,7 +118,6 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		auth.DeleteSession(h.DB, cookie.Value)
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    "",
@@ -91,6 +125,5 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Path:     "/",
 	})
-
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }

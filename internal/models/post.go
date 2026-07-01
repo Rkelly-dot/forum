@@ -2,22 +2,24 @@ package models
 
 import "time"
 
-// Post maps to the posts table.
-// Categories is populated by a JOIN on post_categories — not stored in posts table directly.
 type Post struct {
-	ID         int
-	UserID     int
-	Username   string     // joined from users table for display
+	ID         int64
+	UserID     int64
+	Username   string
 	Title      string
-	Content    string
-	Categories []Category // joined from categories via post_categories
-	Likes      int        // aggregated from likes table
-	Dislikes   int        // aggregated from likes table
+	Body       string
+	Categories []string
+	Likes      int
+	Dislikes   int
 	CreatedAt  time.Time
 }
 
-// Category maps to the categories table.
 type Category struct {
-	ID   int
+	ID   int64
 	Name string
+}
+
+func (p Post) FormattedDate() string {
+	eat := time.FixedZone("EAT", 3*60*60) // UTC+3
+	return p.CreatedAt.In(eat).Format("Jan 2, 2006 at 3:04 PM")
 }

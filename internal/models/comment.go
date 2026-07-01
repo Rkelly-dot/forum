@@ -2,15 +2,18 @@ package models
 
 import "time"
 
-// Comment maps to the comments table.
-// Username is populated by a JOIN on users — not stored in comments table directly.
 type Comment struct {
-	ID        int
-	PostID    int
-	UserID    int
-	Username  string // joined from users table for display
-	Content   string
-	Likes     int // aggregated from likes table
-	Dislikes  int // aggregated from likes table
+	ID        int64
+	PostID    int64
+	UserID    int64
+	Username  string
+	Body      string
+	Likes     int
+	Dislikes  int
 	CreatedAt time.Time
+}
+
+func (c Comment) FormattedDate() string {
+	eat := time.FixedZone("EAT", 3*60*60) // UTC+3
+	return c.CreatedAt.In(eat).Format("Jan 2, 2006 at 3:04 PM")
 }

@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,8 +11,7 @@ import (
 	"forum/internal/models"
 )
 
-func CreateSession(db *sql.DB, userID int) (*models.Session, error) {
-	// delete any existing sessions for this user first
+func CreateSession(db *sql.DB, userID int64) (*models.Session, error) {
 	_, err := db.Exec("DELETE FROM sessions WHERE user_id = ?", userID)
 	if err != nil {
 		return nil, fmt.Errorf("could not clear old sessions: %w", err)
@@ -32,6 +32,26 @@ func CreateSession(db *sql.DB, userID int) (*models.Session, error) {
 	}
 
 	return session, nil
+}
+
+func GetSessionUser(r *http.Request, db *sql.DB) (*models.User, error) {
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		return nil, nil
+	}
+	session, err := ValidateSession(db, cookie.Value)
+	if err != nil {
+		return nil, nil
+	}
+	var user models.User
+	err = db.QueryRow(
+		"SELECT id, username, email, password, created_at FROM users WHERE id = ?",
+		session.UserID,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func ValidateSession(db *sql.DB, token string) (*models.Session, error) {
